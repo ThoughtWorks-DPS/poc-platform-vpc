@@ -1,1 +1,3 @@
 .terraform/
+.terraformrc
+*.auto.tfvars.json
