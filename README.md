@@ -2,7 +2,7 @@
 
 vpc       | region          | az              | az             | az             
 ----------|-----------------|-----------------|----------------|-----------------
-|test|||
+|us-west-2|us-west-2a|us-west-2b|us-west-2c
 
 
 vpc       | region          | az              | az             | az             
