@@ -22,6 +22,7 @@ workflows:
 
     jobs:
       - terraform/plan:
+          executor: twdps/di-circleci-infra-image:1.13.0
           name: sandbox-change-plan
           context: dps-va-di
           shell: secrethub run -- /bin/sh -eo pipefail
