@@ -1,233 +1,816 @@
----
-version: 2.1
-
-orbs:
-  terraform: feedyard/terraform@0.3.0
-
-on-push-master: &on-push-master
-  branches:
-    only: /master/
-  tags:
-    ignore: /.*/
-
-on-tag-master: &on-tag-master
-  branches:
-    ignore: /.*/
-  tags:
-    only: /.*/
-
+# Orb 'feedyard/terraform@0.3.0' resolved to 'feedyard/terraform@0.3.0'
+version: 2
+jobs:
+  sandbox-change-plan:
+    docker:
+    - image: twdps/di-circleci-infra-image:1.13.0
+    resource_class: medium
+    environment:
+    - TF_WORKSPACE: sandbox
+    shell: secrethub run -- /bin/sh -eo pipefail
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        command: terraform fmt -check=false
+        name: terraform cli validation
+        working_directory: .
+    - run:
+        command: docker run --rm -v $(pwd) -t wata727/tflint
+        name: tflint
+        working_directory: .
+    - run:
+        name: generate environmental configuration and credentials from templates
+        command: |
+          secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+          secrethub inject -i tpl/sandbox.auto.tfvars.json.tpl -o sandbox.auto.tfvars.json
+    - run:
+        command: "terraform version\nterraform init \n"
+        name: terraform init
+        working_directory: .
+    - run:
+        command: 'terraform plan '
+        name: terraform plan
+        working_directory: .
+  sandbox-change-apply:
+    docker:
+    - image: twdps/di-circleci-infra-image:1.13.0
+    resource_class: medium
+    environment:
+    - TF_WORKSPACE: sandbox
+    shell: secrethub run -- /bin/sh -eo pipefail
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        name: generate environmental configuration and credentials from templates
+        command: |
+          secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+          secrethub inject -i tpl/sandbox.auto.tfvars.json.tpl -o sandbox.auto.tfvars.json
+          secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
+    - run:
+        command: 'terraform init '
+        name: terraform init
+        working_directory: .
+    - run:
+        command: terraform apply  --auto-approve
+        name: terraform apply
+        working_directory: .
+    - run:
+        name: test sandbox account changes
+        environment:
+          TEST_ENV: sandbox
+        command: secrethub run -- bash nonprod.test.sh sandbox
+  preview-change-plan:
+    docker:
+    - image: twdps/di-circleci-infra-image:1.13.0
+    resource_class: medium
+    environment:
+    - TF_WORKSPACE: preview
+    shell: secrethub run -- /bin/sh -eo pipefail
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        command: terraform fmt -check=false
+        name: terraform cli validation
+        working_directory: .
+    - run:
+        command: docker run --rm -v $(pwd) -t wata727/tflint
+        name: tflint
+        working_directory: .
+    - run:
+        name: generate environmental configuration and credentials from templates
+        command: |
+          secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+          secrethub inject -i tpl/preview.auto.tfvars.json.tpl -o preview.auto.tfvars.json
+    - run:
+        command: "terraform version\nterraform init \n"
+        name: terraform init
+        working_directory: .
+    - run:
+        command: 'terraform plan '
+        name: terraform plan
+        working_directory: .
+  preview-change-apply:
+    docker:
+    - image: twdps/di-circleci-infra-image:1.13.0
+    resource_class: medium
+    environment:
+    - TF_WORKSPACE: preview
+    shell: secrethub run -- /bin/sh -eo pipefail
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        name: generate environmental configuration and credentials from templates
+        command: |
+          secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+          secrethub inject -i tpl/preview.auto.tfvars.json.tpl -o preview.auto.tfvars.json
+          secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
+    - run:
+        command: 'terraform init '
+        name: terraform init
+        working_directory: .
+    - run:
+        command: terraform apply  --auto-approve
+        name: terraform apply
+        working_directory: .
+    - run:
+        name: test preview account changes
+        environment:
+          TEST_ENV: preview
+        command: secrethub run -- bash nonprod.test.sh preview
+  nonprod-change-plan:
+    docker:
+    - image: twdps/di-circleci-infra-image:1.13.0
+    resource_class: medium
+    environment:
+    - TF_WORKSPACE: nonprod
+    shell: secrethub run -- /bin/sh -eo pipefail
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        command: terraform fmt -check=false
+        name: terraform cli validation
+        working_directory: .
+    - run:
+        command: docker run --rm -v $(pwd) -t wata727/tflint
+        name: tflint
+        working_directory: .
+    - run:
+        name: generate environmental configuration and credentials from templates
+        command: |
+          secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+          secrethub inject -i tpl/nonprod.auto.tfvars.json.tpl -o nonprod.auto.tfvars.json
+    - run:
+        command: "terraform version\nterraform init \n"
+        name: terraform init
+        working_directory: .
+    - run:
+        command: 'terraform plan '
+        name: terraform plan
+        working_directory: .
+  nonprod-change-apply:
+    docker:
+    - image: twdps/di-circleci-infra-image:1.13.0
+    resource_class: medium
+    environment:
+    - TF_WORKSPACE: nonprod
+    shell: secrethub run -- /bin/sh -eo pipefail
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        name: generate environmental configuration and credentials from templates
+        command: |
+          secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+          secrethub inject -i tpl/nonprod.auto.tfvars.json.tpl -o nonprod.auto.tfvars.json
+          secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
+    - run:
+        command: 'terraform init '
+        name: terraform init
+        working_directory: .
+    - run:
+        command: terraform apply  --auto-approve
+        name: terraform apply
+        working_directory: .
+    - run:
+        name: test nonprod account changes
+        environment:
+          TEST_ENV: nonprod
+        command: secrethub run -- bash nonprod.test.sh nonprod
+  mapi-change-plan:
+    docker:
+    - image: twdps/di-circleci-infra-image:1.13.0
+    resource_class: medium
+    environment:
+    - TF_WORKSPACE: mapi
+    shell: secrethub run -- /bin/sh -eo pipefail
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        command: terraform fmt -check=false
+        name: terraform cli validation
+        working_directory: .
+    - run:
+        command: docker run --rm -v $(pwd) -t wata727/tflint
+        name: tflint
+        working_directory: .
+    - run:
+        name: generate environmental configuration and credentials from templates
+        command: |
+          secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+          secrethub inject -i tpl/mapi.auto.tfvars.json.tpl -o mapi.auto.tfvars.json
+    - run:
+        command: "terraform version\nterraform init \n"
+        name: terraform init
+        working_directory: .
+    - run:
+        command: 'terraform plan '
+        name: terraform plan
+        working_directory: .
+  mapi-change-apply:
+    docker:
+    - image: twdps/di-circleci-infra-image:1.13.0
+    resource_class: medium
+    environment:
+    - TF_WORKSPACE: mapi
+    shell: secrethub run -- /bin/sh -eo pipefail
+    steps:
+    - checkout
+    - setup_remote_docker
+    - run:
+        name: generate environmental configuration and credentials from templates
+        command: |
+          secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+          secrethub inject -i tpl/mapi.auto.tfvars.json.tpl -o mapi.auto.tfvars.json
+          secrethub inject -i tpl/prod.test.sh.tpl -o prod.test.sh
+    - run:
+        command: 'terraform init '
+        name: terraform init
+        working_directory: .
+    - run:
+        command: terraform apply  --auto-approve
+        name: terraform apply
+        working_directory: .
+    - run:
+        name: test mapi account changes
+        environment:
+          TEST_ENV: mapi
+        command: secrethub run -- bash prod.test.sh mapi
 workflows:
   version: 2
   lab-platform-vpc-pipeline:
-
     jobs:
-      - terraform/plan:
-          name: sandbox-change-plan
-          context: dps-va-di
-          shell: secrethub run -- /bin/sh -eo pipefail
-          workspace: sandbox
-          before-terraform:
-            - run:
-                name: generate environmental configuration and credentials from templates
-                command: |
-                  secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-                  secrethub inject -i tpl/sandbox.auto.tfvars.json.tpl -o sandbox.auto.tfvars.json
+    - sandbox-change-plan:
+        context: dps-va-di
+    - approve-sandbox-changes:
+        filters:
+          branches:
+            only: /master/
+          tags:
+            ignore: /.*/
+        type: approval
+        requires:
+        - sandbox-change-plan
+    - sandbox-change-apply:
+        filters:
+          branches:
+            only: /master/
+          tags:
+            ignore: /.*/
+        requires:
+        - approve-sandbox-changes
+        context: dps-va-di
+    - preview-change-plan:
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
+        context: dps-va-di
+    - approve-preview-changes:
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
+        type: approval
+        requires:
+        - preview-change-plan
+    - preview-change-apply:
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
+        requires:
+        - approve-preview-changes
+        context: dps-va-di
+    - nonprod-change-plan:
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
+        requires:
+        - preview-change-apply
+        context: dps-va-di
+    - approve-nonprod-changes:
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
+        type: approval
+        requires:
+        - nonprod-change-plan
+    - nonprod-change-apply:
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
+        requires:
+        - approve-nonprod-changes
+        context: dps-va-di
+    - mapi-change-plan:
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
+        requires:
+        - nonprod-change-apply
+        context: dps-va-di
+    - approve-prod-and-mapi-changes:
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
+        type: approval
+        requires:
+        - mapi-change-plan
+    - mapi-change-apply:
+        filters:
+          branches:
+            ignore: /.*/
+          tags:
+            only: /.*/
+        requires:
+        - approve-prod-and-mapi-changes
+        context: dps-va-di
+
+# Original config.yml file:
+# ---
+# version: 2.1
+#
+# orbs:
+#   terraform: feedyard/terraform@0.3.0
+#
+# on-push-master: &on-push-master
+#   branches:
+#     only: /master/
+#   tags:
+#     ignore: /.*/
+#
+# on-tag-master: &on-tag-master
+#   branches:
+#     ignore: /.*/
+#   tags:
+#     only: /.*/
+#
+# workflows:
+#   version: 2
+#   lab-platform-vpc-pipeline:
+#
+#     jobs:
+#       - terraform/plan:
+#           name: sandbox-change-plan
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: sandbox
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/sandbox.auto.tfvars.json.tpl -o sandbox.auto.tfvars.json
+#
+#
+#       - approve-sandbox-changes:
+#           type: approval
+#           requires:
+#             - sandbox-change-plan
+#           filters: *on-push-master
+#
+#       - terraform/apply:
+#           name: sandbox-change-apply
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: sandbox
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/sandbox.auto.tfvars.json.tpl -o sandbox.auto.tfvars.json
+#                   secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
+#           after-terraform:
+#             - run:
+#                 name: test sandbox account changes
+#                 environment:
+#                   TEST_ENV: sandbox
+#                 command: secrethub run -- bash nonprod.test.sh sandbox
+#           requires:
+#             - approve-sandbox-changes
+#           filters: *on-push-master
+#
+#       # git tag - release pipeline
+#
+#       # release preview cluster vpc
+#       - terraform/plan:
+#           name: preview-change-plan
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: preview
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/preview.auto.tfvars.json.tpl -o preview.auto.tfvars.json
+#           filters: *on-tag-master
+#
+#       - approve-preview-changes:
+#           type: approval
+#           requires:
+#             - preview-change-plan
+#           filters: *on-tag-master
+#
+#       - terraform/apply:
+#           name: preview-change-apply
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: preview
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/preview.auto.tfvars.json.tpl -o preview.auto.tfvars.json
+#                   secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
+#           after-terraform:
+#             - run:
+#                 name: test preview account changes
+#                 environment:
+#                   TEST_ENV: preview
+#                 command: secrethub run -- bash nonprod.test.sh preview
+#           requires:
+#             - approve-preview-changes
+#           filters: *on-tag-master
+#
+#       # release nonprod cluster vpc
+#       - terraform/plan:
+#           name: nonprod-change-plan
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: nonprod
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/nonprod.auto.tfvars.json.tpl -o nonprod.auto.tfvars.json
+#           requires:
+#             - preview-change-apply
+#           filters: *on-tag-master
+#
+#       - approve-nonprod-changes:
+#           type: approval
+#           requires:
+#             - nonprod-change-plan
+#           filters: *on-tag-master
+#
+#       - terraform/apply:
+#           name: nonprod-change-apply
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: nonprod
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/nonprod.auto.tfvars.json.tpl -o nonprod.auto.tfvars.json
+#                   secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
+#           after-terraform:
+#             - run:
+#                 name: test nonprod account changes
+#                 environment:
+#                   TEST_ENV: nonprod
+#                 command: secrethub run -- bash nonprod.test.sh nonprod
+#           requires:
+#             - approve-nonprod-changes
+#           filters: *on-tag-master
+#
+#       # release prod and mapi cluster vpc
+#       # - terraform/plan:
+#       #     name: prod-change-plan
+#       #     context: dps-va-di
+#       #     shell: secrethub run -- /bin/sh -eo pipefail
+#       #     workspace: prod
+#       #     before-terraform:
+#       #       - run:
+#       #           name: generate environmental configuration and credentials from templates
+#       #           command: |
+#       #             secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#       #             secrethub inject -i tpl/prod.auto.tfvars.json.tpl -o prod.auto.tfvars.json
+#       #     requires:
+#       #       - nonprod-change-apply
+#       #     filters: *on-tag-master
+#
+#       - terraform/plan:
+#           name: mapi-change-plan
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: mapi
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/mapi.auto.tfvars.json.tpl -o mapi.auto.tfvars.json
+#           requires:
+#             - nonprod-change-apply
+#           filters: *on-tag-master
+#
+#       - approve-prod-and-mapi-changes:
+#           type: approval
+#           requires:
+#             # - prod-change-plan
+#             - mapi-change-plan
+#           filters: *on-tag-master
+#
+#       # - terraform/apply:
+#       #     name: prod-change-apply
+#       #     context: dps-va-di
+#       #     shell: secrethub run -- /bin/sh -eo pipefail
+#       #     workspace: prod
+#       #     before-terraform:
+#       #       - run:
+#       #           name: generate environmental configuration and credentials from templates
+#       #           command: |
+#       #             secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#       #             secrethub inject -i tpl/prod.auto.tfvars.json.tpl -o prod.auto.tfvars.json
+#       #             secrethub inject -i tpl/prod.test.sh.tpl -o prod.test.sh
+#       #     after-terraform:
+#       #       - run:
+#       #           name: test prod account changes
+#       #           environment:
+#       #             TEST_ENV: prod
+#       #           command: secrethub run -- bash prod.test.sh prod
+#       #     requires:
+#       #       - approve-prod-and-mapi-changes
+#       #     filters: *on-tag-master
+#
+#       - terraform/apply:
+#           name: mapi-change-apply
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: mapi
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/mapi.auto.tfvars.json.tpl -o mapi.auto.tfvars.json
+#                   secrethub inject -i tpl/prod.test.sh.tpl -o prod.test.sh
+#           after-terraform:
+#             - run:
+#                 name: test mapi account changes
+#                 environment:
+#                   TEST_ENV: mapi
+#                 command: secrethub run -- bash prod.test.sh mapi
+#           requires:
+#             - approve-prod-and-mapi-changes
+#           filters: *on-tag-master%
 
 
-      - approve-sandbox-changes:
-          type: approval
-          requires:
-            - sandbox-change-plan
-          filters: *on-push-master
+# ---
+# version: 2.1
 
-      - terraform/apply:
-          name: sandbox-change-apply
-          context: dps-va-di
-          shell: secrethub run -- /bin/sh -eo pipefail
-          workspace: sandbox
-          before-terraform:
-            - run:
-                name: generate environmental configuration and credentials from templates
-                command: |
-                  secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-                  secrethub inject -i tpl/sandbox.auto.tfvars.json.tpl -o sandbox.auto.tfvars.json
-                  secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
-          after-terraform:
-            - run:
-                name: test sandbox account changes
-                environment:
-                  TEST_ENV: sandbox
-                command: secrethub run -- bash nonprod.test.sh sandbox
-          requires:
-            - approve-sandbox-changes
-          filters: *on-push-master
+# orbs:
+#   terraform: feedyard/terraform@0.3.0
 
-      # git tag - release pipeline
+# on-push-master: &on-push-master
+#   branches:
+#     only: /master/
+#   tags:
+#     ignore: /.*/
 
-      # release preview cluster vpc
-      - terraform/plan:
-          name: preview-change-plan
-          context: dps-va-di
-          shell: secrethub run -- /bin/sh -eo pipefail
-          workspace: preview
-          before-terraform:
-            - run:
-                name: generate environmental configuration and credentials from templates
-                command: |
-                  secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-                  secrethub inject -i tpl/preview.auto.tfvars.json.tpl -o preview.auto.tfvars.json
-          filters: *on-tag-master
+# on-tag-master: &on-tag-master
+#   branches:
+#     ignore: /.*/
+#   tags:
+#     only: /.*/
 
-      - approve-preview-changes:
-          type: approval
-          requires:
-            - preview-change-plan
-          filters: *on-tag-master
+# workflows:
+#   version: 2
+#   lab-platform-vpc-pipeline:
 
-      - terraform/apply:
-          name: preview-change-apply
-          context: dps-va-di
-          shell: secrethub run -- /bin/sh -eo pipefail
-          workspace: preview
-          before-terraform:
-            - run:
-                name: generate environmental configuration and credentials from templates
-                command: |
-                  secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-                  secrethub inject -i tpl/preview.auto.tfvars.json.tpl -o preview.auto.tfvars.json
-                  secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
-          after-terraform:
-            - run:
-                name: test preview account changes
-                environment:
-                  TEST_ENV: preview
-                command: secrethub run -- bash nonprod.test.sh preview
-          requires:
-            - approve-preview-changes
-          filters: *on-tag-master
+#     jobs:
+#       - terraform/plan:
+#           name: sandbox-change-plan
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: sandbox
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/sandbox.auto.tfvars.json.tpl -o sandbox.auto.tfvars.json
 
-      # release nonprod cluster vpc
-      - terraform/plan:
-          name: nonprod-change-plan
-          context: dps-va-di
-          shell: secrethub run -- /bin/sh -eo pipefail
-          workspace: nonprod
-          before-terraform:
-            - run:
-                name: generate environmental configuration and credentials from templates
-                command: |
-                  secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-                  secrethub inject -i tpl/nonprod.auto.tfvars.json.tpl -o nonprod.auto.tfvars.json
-          requires:
-            - preview-change-apply
-          filters: *on-tag-master
 
-      - approve-nonprod-changes:
-          type: approval
-          requires:
-            - nonprod-change-plan
-          filters: *on-tag-master
+#       - approve-sandbox-changes:
+#           type: approval
+#           requires:
+#             - sandbox-change-plan
+#           filters: *on-push-master
 
-      - terraform/apply:
-          name: nonprod-change-apply
-          context: dps-va-di
-          shell: secrethub run -- /bin/sh -eo pipefail
-          workspace: nonprod
-          before-terraform:
-            - run:
-                name: generate environmental configuration and credentials from templates
-                command: |
-                  secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-                  secrethub inject -i tpl/nonprod.auto.tfvars.json.tpl -o nonprod.auto.tfvars.json
-                  secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
-          after-terraform:
-            - run:
-                name: test nonprod account changes
-                environment:
-                  TEST_ENV: nonprod
-                command: secrethub run -- bash nonprod.test.sh nonprod
-          requires:
-            - approve-nonprod-changes
-          filters: *on-tag-master
+#       - terraform/apply:
+#           name: sandbox-change-apply
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: sandbox
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/sandbox.auto.tfvars.json.tpl -o sandbox.auto.tfvars.json
+#                   secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
+#           after-terraform:
+#             - run:
+#                 name: test sandbox account changes
+#                 environment:
+#                   TEST_ENV: sandbox
+#                 command: secrethub run -- bash nonprod.test.sh sandbox
+#           requires:
+#             - approve-sandbox-changes
+#           filters: *on-push-master
 
-      # release prod and mapi cluster vpc
-      # - terraform/plan:
-      #     name: prod-change-plan
-      #     context: dps-va-di
-      #     shell: secrethub run -- /bin/sh -eo pipefail
-      #     workspace: prod
-      #     before-terraform:
-      #       - run:
-      #           name: generate environmental configuration and credentials from templates
-      #           command: |
-      #             secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-      #             secrethub inject -i tpl/prod.auto.tfvars.json.tpl -o prod.auto.tfvars.json
-      #     requires:
-      #       - nonprod-change-apply
-      #     filters: *on-tag-master
+#       # git tag - release pipeline
 
-      - terraform/plan:
-          name: mapi-change-plan
-          context: dps-va-di
-          shell: secrethub run -- /bin/sh -eo pipefail
-          workspace: mapi
-          before-terraform:
-            - run:
-                name: generate environmental configuration and credentials from templates
-                command: |
-                  secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-                  secrethub inject -i tpl/mapi.auto.tfvars.json.tpl -o mapi.auto.tfvars.json
-          requires:
-            - nonprod-change-apply
-          filters: *on-tag-master
+#       # release preview cluster vpc
+#       - terraform/plan:
+#           name: preview-change-plan
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: preview
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/preview.auto.tfvars.json.tpl -o preview.auto.tfvars.json
+#           filters: *on-tag-master
 
-      - approve-prod-and-mapi-changes:
-          type: approval
-          requires:
-            # - prod-change-plan
-            - mapi-change-plan
-          filters: *on-tag-master
+#       - approve-preview-changes:
+#           type: approval
+#           requires:
+#             - preview-change-plan
+#           filters: *on-tag-master
 
-      # - terraform/apply:
-      #     name: prod-change-apply
-      #     context: dps-va-di
-      #     shell: secrethub run -- /bin/sh -eo pipefail
-      #     workspace: prod
-      #     before-terraform:
-      #       - run:
-      #           name: generate environmental configuration and credentials from templates
-      #           command: |
-      #             secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-      #             secrethub inject -i tpl/prod.auto.tfvars.json.tpl -o prod.auto.tfvars.json
-      #             secrethub inject -i tpl/prod.test.sh.tpl -o prod.test.sh
-      #     after-terraform:
-      #       - run:
-      #           name: test prod account changes
-      #           environment:
-      #             TEST_ENV: prod
-      #           command: secrethub run -- bash prod.test.sh prod
-      #     requires:
-      #       - approve-prod-and-mapi-changes
-      #     filters: *on-tag-master
+#       - terraform/apply:
+#           name: preview-change-apply
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: preview
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/preview.auto.tfvars.json.tpl -o preview.auto.tfvars.json
+#                   secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
+#           after-terraform:
+#             - run:
+#                 name: test preview account changes
+#                 environment:
+#                   TEST_ENV: preview
+#                 command: secrethub run -- bash nonprod.test.sh preview
+#           requires:
+#             - approve-preview-changes
+#           filters: *on-tag-master
 
-      - terraform/apply:
-          name: mapi-change-apply
-          context: dps-va-di
-          shell: secrethub run -- /bin/sh -eo pipefail
-          workspace: mapi
-          before-terraform:
-            - run:
-                name: generate environmental configuration and credentials from templates
-                command: |
-                  secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
-                  secrethub inject -i tpl/mapi.auto.tfvars.json.tpl -o mapi.auto.tfvars.json
-                  secrethub inject -i tpl/prod.test.sh.tpl -o prod.test.sh
-          after-terraform:
-            - run:
-                name: test mapi account changes
-                environment:
-                  TEST_ENV: mapi
-                command: secrethub run -- bash prod.test.sh mapi
-          requires:
-            - approve-prod-and-mapi-changes
-          filters: *on-tag-master
+#       # release nonprod cluster vpc
+#       - terraform/plan:
+#           name: nonprod-change-plan
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: nonprod
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/nonprod.auto.tfvars.json.tpl -o nonprod.auto.tfvars.json
+#           requires:
+#             - preview-change-apply
+#           filters: *on-tag-master
+
+#       - approve-nonprod-changes:
+#           type: approval
+#           requires:
+#             - nonprod-change-plan
+#           filters: *on-tag-master
+
+#       - terraform/apply:
+#           name: nonprod-change-apply
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: nonprod
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/nonprod.auto.tfvars.json.tpl -o nonprod.auto.tfvars.json
+#                   secrethub inject -i tpl/nonprod.test.sh.tpl -o nonprod.test.sh
+#           after-terraform:
+#             - run:
+#                 name: test nonprod account changes
+#                 environment:
+#                   TEST_ENV: nonprod
+#                 command: secrethub run -- bash nonprod.test.sh nonprod
+#           requires:
+#             - approve-nonprod-changes
+#           filters: *on-tag-master
+
+#       # release prod and mapi cluster vpc
+#       # - terraform/plan:
+#       #     name: prod-change-plan
+#       #     context: dps-va-di
+#       #     shell: secrethub run -- /bin/sh -eo pipefail
+#       #     workspace: prod
+#       #     before-terraform:
+#       #       - run:
+#       #           name: generate environmental configuration and credentials from templates
+#       #           command: |
+#       #             secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#       #             secrethub inject -i tpl/prod.auto.tfvars.json.tpl -o prod.auto.tfvars.json
+#       #     requires:
+#       #       - nonprod-change-apply
+#       #     filters: *on-tag-master
+
+#       - terraform/plan:
+#           name: mapi-change-plan
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: mapi
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/mapi.auto.tfvars.json.tpl -o mapi.auto.tfvars.json
+#           requires:
+#             - nonprod-change-apply
+#           filters: *on-tag-master
+
+#       - approve-prod-and-mapi-changes:
+#           type: approval
+#           requires:
+#             # - prod-change-plan
+#             - mapi-change-plan
+#           filters: *on-tag-master
+
+#       # - terraform/apply:
+#       #     name: prod-change-apply
+#       #     context: dps-va-di
+#       #     shell: secrethub run -- /bin/sh -eo pipefail
+#       #     workspace: prod
+#       #     before-terraform:
+#       #       - run:
+#       #           name: generate environmental configuration and credentials from templates
+#       #           command: |
+#       #             secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#       #             secrethub inject -i tpl/prod.auto.tfvars.json.tpl -o prod.auto.tfvars.json
+#       #             secrethub inject -i tpl/prod.test.sh.tpl -o prod.test.sh
+#       #     after-terraform:
+#       #       - run:
+#       #           name: test prod account changes
+#       #           environment:
+#       #             TEST_ENV: prod
+#       #           command: secrethub run -- bash prod.test.sh prod
+#       #     requires:
+#       #       - approve-prod-and-mapi-changes
+#       #     filters: *on-tag-master
+
+#       - terraform/apply:
+#           name: mapi-change-apply
+#           context: dps-va-di
+#           shell: secrethub run -- /bin/sh -eo pipefail
+#           workspace: mapi
+#           before-terraform:
+#             - run:
+#                 name: generate environmental configuration and credentials from templates
+#                 command: |
+#                   secrethub inject -i tpl/terraformrc.tpl -o ~/.terraformrc
+#                   secrethub inject -i tpl/mapi.auto.tfvars.json.tpl -o mapi.auto.tfvars.json
+#                   secrethub inject -i tpl/prod.test.sh.tpl -o prod.test.sh
+#           after-terraform:
+#             - run:
+#                 name: test mapi account changes
+#                 environment:
+#                   TEST_ENV: mapi
+#                 command: secrethub run -- bash prod.test.sh mapi
+#           requires:
+#             - approve-prod-and-mapi-changes
+#           filters: *on-tag-master
