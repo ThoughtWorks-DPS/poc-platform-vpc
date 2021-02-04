@@ -1,9 +1,8 @@
 terraform {
-  required_version = "~> 0.13.3"
+  required_version = "~> 0.14"
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "~> 3.8"
     }
   }
 
@@ -17,7 +16,6 @@ terraform {
 }
 
 provider "aws" {
-  version = "~> 3.8"
   region  = var.aws_region
   assume_role {
     role_arn     = "arn:aws:iam::${var.account_id}:role/${var.assume_role}"
